@@ -1,0 +1,204 @@
+package expressions
+
+interface DIMACS
+
+open class CNF(
+    val args: List<Expression>,
+    val variables: Set<String>,
+    val coreVariables: List<Variable> = emptyList(),
+    val metaVariables: List<List<Variable>> = emptyList()
+) : DIMACS {
+    override fun toString(): String {
+        val sb = StringBuilder()
+        if (coreVariables.isNotEmpty()) {
+        sb.append("c core variables:\n")
+        sb.append(coreVariables.joinToString(" ", "c ", "\n") { "$it" })
+        }
+        if (metaVariables.isNotEmpty()) {
+            sb.append("c metaVariables:\n")
+            metaVariables.forEach {
+                sb.append(it.joinToString(" ", "c ", "\n") { "$it" })
+            }
+        }
+        val prefix = "p cnf ${variables.size} ${args.size}\n"
+        val operand = " 0\n"
+        val postfix = " 0\n"
+        sb.append(args.joinToString(operand, prefix, postfix) { "$it" })
+        return "$sb"
+    }
+
+    constructor(and: And) : this(and.args, and.variables)
+    constructor(and: And, core: List<Variable>) : this(and.args, and.variables, core)
+    constructor(and: And, core: List<Variable>, meta: List<List<Variable>>) : this(and.args, and.variables, core, meta)
+}
+
+class WCNF(
+    private val hardArgs: List<Expression>,
+    private val softArgs: List<Expression>,
+    val variables: Set<String>
+) : DIMACS {
+    override fun toString(): String {
+        val weight = softArgs.size + 1
+        val prefix = "p wcnf ${variables.size} ${softArgs.size + hardArgs.size} $weight\n"
+        val operand = " 0\n"
+        val postfix = " 0\n"
+        val firstPart = hardArgs.joinToString(operand, prefix, postfix) { "$weight $it" }
+        val secondPart = softArgs.joinToString(operand, "", postfix) { "1 $it" }
+        return firstPart + secondPart
+    }
+
+    constructor(hard: CNF, soft: CNF) : this(hard.args, soft.args, hard.variables + soft.variables)
+}
+
+class CNFWithMetaInfo(
+    cnf: CNF,
+    private val metaInfo: List<List<Variable>>
+) : CNF(cnf.args, cnf.variables) {
+    fun meta(): String {
+        val sb = StringBuilder()
+        sb.append(metaInfo.size)
+        sb.append("\n")
+        for (metavar in metaInfo) {
+            sb.append(metavar.size).append(' ')
+            for (variable in metavar) {
+                sb.append(variable.name).append(' ')
+            }
+            sb.append('\n')
+        }
+        return sb.toString()
+    }
+}
+
+sealed class Expression(
+    private val defArgs: List<Expression>,
+    val variables: Set<String> = defArgs.fold(mutableSetOf()) { a, b -> a.apply { addAll(b.variables) } }
+) {
+    open val args: List<Expression>
+        get() = defArgs
+    abstract val prefix: String
+    abstract val postfix: String
+    abstract val operand: String
+    override fun toString() = defArgs.joinToString(operand, prefix, postfix) { "$it" }
+}
+
+class And(args: List<Expression>) : Expression(args.flatMap { if (it is And) it.args else listOf(it) }) {
+    constructor(vararg args: Expression) : this(args.toList())
+
+    override val prefix: String
+        get() = "p cnf ${variables.size} ${args.size}\n"
+    override val postfix: String
+        get() = " 0\n"
+    override val operand: String
+        get() = " 0\n"
+
+    override fun equals(other: Any?): Boolean =
+        if (other is And) {
+            other.args == args
+        } else {
+            false
+        }
+
+    override fun hashCode() = args.hashCode()
+}
+
+class Or(args: Collection<Expression>) : Expression(args.flatMap { if (it is Or) it.args else listOf(it) }) {
+    override val prefix: String
+        get() = ""
+    override val postfix: String
+        get() = ""
+    override val operand: String
+        get() = " "
+
+    override fun equals(other: Any?): Boolean =
+        if (other is Or) {
+            other.args == args
+        } else {
+            false
+        }
+
+    override fun hashCode() = args.hashCode()
+}
+
+class Not(expr: Expression) : Expression(listOf(expr)) {
+    override val prefix: String
+        get() = "-"
+    override val postfix: String
+        get() = ""
+    override val operand: String
+        get() = ""
+
+    override fun equals(other: Any?): Boolean =
+        if (other is Not) {
+            other.args == args
+        } else {
+            false
+        }
+
+    override fun hashCode() = args.hashCode() + 104729
+}
+
+sealed class Literal(val name: String = "") : Expression(listOf(), if (name == "") emptySet() else setOf(name)) {
+    override val args: List<Expression>
+        get() = listOf(this)
+    override val prefix: String
+        get() = name ?: ""
+    override val postfix: String
+        get() = ""
+    override val operand: String
+        get() = ""
+}
+
+class False : Literal()
+
+class True : Literal()
+
+open class Variable(name: String) : Literal(name) {
+    override fun equals(other: Any?): Boolean =
+        if (other is Variable) {
+            name == other.name
+        } else {
+            false
+        }
+
+    override fun hashCode() = name.hashCode()
+}
+
+fun not(expr: Expression): Expression =
+    when (expr) {
+        is Not -> expr.args.single()
+        is True -> False()
+        is False -> True()
+        else -> Not(expr)
+    }
+
+fun and(exprs: Collection<Expression>) = and(*exprs.toTypedArray())
+
+fun and(vararg exprs: Expression): Expression =
+    And(exprs.flatMap {
+        when (it) {
+            is And -> it.args
+            is True -> listOf()
+            is False -> return False()
+            else -> listOf(it)
+        }
+    })
+
+fun or(exprs: Collection<Expression>) = or(*exprs.toTypedArray())
+
+fun or(vararg exprs: Expression): Expression =
+    Or(exprs.flatMap {
+        when (it) {
+            is Or -> it.args
+            is True -> return True()
+            is False -> listOf()
+            is And -> error("not cnf")
+            else -> listOf(it)
+        }
+    }.also { if (it.isEmpty()) return False() })
+
+infix fun Expression.and(other: Expression): Expression =
+    and(this, other)
+
+infix fun Expression.or(other: Expression): Expression =
+    or(this, other)
+
