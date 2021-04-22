@@ -1,9 +1,9 @@
 package printers
 
-import expressions.DIMACS
+import expressions.CNF
 
 interface CnfEncoder {
-    fun cnf() : DIMACS
+    fun cnf() : CNF
 }
 
 interface LatinCnfEncoderBuilder {

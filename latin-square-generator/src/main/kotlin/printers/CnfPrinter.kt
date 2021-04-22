@@ -1,13 +1,11 @@
 package printers
 
-import expressions.DIMACS
-import java.io.BufferedWriter
+import expressions.CNF
 import java.io.Closeable
-import java.io.PrintStream
 import java.io.PrintWriter
 
-class CnfPrinter(val writer: PrintWriter) : Closeable by writer {
-    fun print(dimacs: DIMACS) {
-        writer.print(dimacs)
+open class CnfPrinter(val writer: PrintWriter) : Closeable by writer {
+    open fun print(cnf: CNF) {
+        writer.print(cnf)
     }
 }

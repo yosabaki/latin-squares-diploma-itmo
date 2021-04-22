@@ -7,24 +7,23 @@ import expressions.and
 import utils.*
 
 class OrthogonalArrayEncoder(reduced: Boolean, val n: Int, val s: Int, val q: Int) : CnfEncoder {
-    val array = if (reduced) {
+    private val coreVariables = if (reduced) {
         initReducedArray(s, n * n, n)
     } else {
         initMatrix(s, n * n, n)
     }
-    val coreSize = varCounter
+    private val coreSize = varCounter
 
     override fun cnf(): CNF {
-        val array = initMatrix(s, n * n, n)
-        val lines = array.map { codeSufficient(it) }
+        val lines = coreVariables.map { codeSufficient(it) }
         val firstPair = (0..1).flatMap { i ->
             (i + 1 until s).map { j ->
-                orthogonal(array[i], array[j], n * n)
+                orthogonal(coreVariables[i], coreVariables[j], n * n)
             }
         }
         val secondPair = (2 until s).flatMap { i ->
             (i + 1 until s).map { j ->
-                orthogonal(array[i], array[j], q)
+                orthogonal(coreVariables[i], coreVariables[j], q)
             }
         }
         val core = List(coreSize) { Variable("${it + 1}") }

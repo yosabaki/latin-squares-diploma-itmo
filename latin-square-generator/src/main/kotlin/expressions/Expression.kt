@@ -1,18 +1,16 @@
 package expressions
 
-interface DIMACS
-
 open class CNF(
-    val args: List<Expression>,
+    val clauses: List<Expression>,
     val variables: Set<String>,
     val coreVariables: List<Variable> = emptyList(),
     val metaVariables: List<List<Variable>> = emptyList()
-) : DIMACS {
+) {
     override fun toString(): String {
         val sb = StringBuilder()
         if (coreVariables.isNotEmpty()) {
-        sb.append("c core variables:\n")
-        sb.append(coreVariables.joinToString(" ", "c ", "\n") { "$it" })
+            sb.append("c core variables:\n")
+            sb.append(coreVariables.joinToString(" ", "c ", "\n") { "$it" })
         }
         if (metaVariables.isNotEmpty()) {
             sb.append("c metaVariables:\n")
@@ -20,53 +18,68 @@ open class CNF(
                 sb.append(it.joinToString(" ", "c ", "\n") { "$it" })
             }
         }
-        val prefix = "p cnf ${variables.size} ${args.size}\n"
+        val prefix = "p cnf ${variables.size} ${clauses.size}\n"
         val operand = " 0\n"
         val postfix = " 0\n"
-        sb.append(args.joinToString(operand, prefix, postfix) { "$it" })
+        sb.append(clauses.joinToString(operand, prefix, postfix) { "$it" })
         return "$sb"
+    }
+
+    open fun propagate(units: Map<Variable, Literal>): CNF {
+        val newClauses = propagateClauses(clauses, units)
+        return CNF(
+            newClauses,
+            variables,
+            filterNotPropagated(coreVariables, units),
+            metaVariables.map { filterNotPropagated(it, units) }.filter { it.isNotEmpty() }
+        )
     }
 
     constructor(and: And) : this(and.args, and.variables)
     constructor(and: And, core: List<Variable>) : this(and.args, and.variables, core)
     constructor(and: And, core: List<Variable>, meta: List<List<Variable>>) : this(and.args, and.variables, core, meta)
 }
+private fun filterNotPropagated(variables: List<Variable>, units: Map<Variable, Literal>) =
+    variables.filter{ it !in units.keys }
+
+private fun propagateClauses(clauses: List<Expression>, units: Map<Variable, Literal>) =
+    clauses.map { it.propagate(units) } + and(units.map { (variable, literal) ->
+        or(
+            when (literal) {
+                False -> not(variable)
+                True -> variable
+                else -> error("propagation error")
+            }
+        )
+    })
+
 
 class WCNF(
-    private val hardArgs: List<Expression>,
+    hardArgs: List<Expression>,
     private val softArgs: List<Expression>,
-    val variables: Set<String>
-) : DIMACS {
+    variables: Set<String>
+) : CNF(hardArgs, variables) {
     override fun toString(): String {
         val weight = softArgs.size + 1
-        val prefix = "p wcnf ${variables.size} ${softArgs.size + hardArgs.size} $weight\n"
+        val prefix = "p wcnf ${variables.size} ${softArgs.size + clauses.size} $weight\n"
         val operand = " 0\n"
         val postfix = " 0\n"
-        val firstPart = hardArgs.joinToString(operand, prefix, postfix) { "$weight $it" }
+        val firstPart = clauses.joinToString(operand, prefix, postfix) { "$weight $it" }
         val secondPart = softArgs.joinToString(operand, "", postfix) { "1 $it" }
         return firstPart + secondPart
     }
 
-    constructor(hard: CNF, soft: CNF) : this(hard.args, soft.args, hard.variables + soft.variables)
-}
-
-class CNFWithMetaInfo(
-    cnf: CNF,
-    private val metaInfo: List<List<Variable>>
-) : CNF(cnf.args, cnf.variables) {
-    fun meta(): String {
-        val sb = StringBuilder()
-        sb.append(metaInfo.size)
-        sb.append("\n")
-        for (metavar in metaInfo) {
-            sb.append(metavar.size).append(' ')
-            for (variable in metavar) {
-                sb.append(variable.name).append(' ')
-            }
-            sb.append('\n')
-        }
-        return sb.toString()
+    override fun propagate(units: Map<Variable, Literal>): WCNF {
+        val newClauses = propagateClauses(clauses, units)
+        val newSoftArgs = propagateClauses(softArgs, units)
+        return WCNF(
+            newClauses,
+            newSoftArgs,
+            variables
+        )
     }
+
+    constructor(hard: CNF, soft: CNF) : this(hard.clauses, soft.clauses, hard.variables + soft.variables)
 }
 
 sealed class Expression(
@@ -79,6 +92,7 @@ sealed class Expression(
     abstract val postfix: String
     abstract val operand: String
     override fun toString() = defArgs.joinToString(operand, prefix, postfix) { "$it" }
+    abstract fun propagate(units: Map<Variable, Literal>): Expression
 }
 
 class And(args: List<Expression>) : Expression(args.flatMap { if (it is And) it.args else listOf(it) }) {
@@ -99,6 +113,8 @@ class And(args: List<Expression>) : Expression(args.flatMap { if (it is And) it.
         }
 
     override fun hashCode() = args.hashCode()
+
+    override fun propagate(units: Map<Variable, Literal>) = and(args.map { it.propagate(units) })
 }
 
 class Or(args: Collection<Expression>) : Expression(args.flatMap { if (it is Or) it.args else listOf(it) }) {
@@ -117,9 +133,10 @@ class Or(args: Collection<Expression>) : Expression(args.flatMap { if (it is Or)
         }
 
     override fun hashCode() = args.hashCode()
+    override fun propagate(units: Map<Variable, Literal>): Expression = or(args.map { it.propagate(units) })
 }
 
-class Not(expr: Expression) : Expression(listOf(expr)) {
+class Not(private val expr: Expression) : Expression(listOf(expr)) {
     override val prefix: String
         get() = "-"
     override val postfix: String
@@ -135,6 +152,7 @@ class Not(expr: Expression) : Expression(listOf(expr)) {
         }
 
     override fun hashCode() = args.hashCode() + 104729
+    override fun propagate(units: Map<Variable, Literal>): Expression = not(expr.propagate(units))
 }
 
 sealed class Literal(val name: String = "") : Expression(listOf(), if (name == "") emptySet() else setOf(name)) {
@@ -148,9 +166,13 @@ sealed class Literal(val name: String = "") : Expression(listOf(), if (name == "
         get() = ""
 }
 
-class False : Literal()
+object False : Literal() {
+    override fun propagate(units: Map<Variable, Literal>): Expression = this
+}
 
-class True : Literal()
+object True : Literal() {
+    override fun propagate(units: Map<Variable, Literal>): Expression = this
+}
 
 open class Variable(name: String) : Literal(name) {
     override fun equals(other: Any?): Boolean =
@@ -161,13 +183,15 @@ open class Variable(name: String) : Literal(name) {
         }
 
     override fun hashCode() = name.hashCode()
+    override fun propagate(units: Map<Variable, Literal>): Expression =
+        units.getOrDefault(this, this)
 }
 
 fun not(expr: Expression): Expression =
     when (expr) {
         is Not -> expr.args.single()
-        is True -> False()
-        is False -> True()
+        is True -> False
+        is False -> True
         else -> Not(expr)
     }
 
@@ -178,7 +202,7 @@ fun and(vararg exprs: Expression): Expression =
         when (it) {
             is And -> it.args
             is True -> listOf()
-            is False -> return False()
+            is False -> return False
             else -> listOf(it)
         }
     })
@@ -189,12 +213,12 @@ fun or(vararg exprs: Expression): Expression =
     Or(exprs.flatMap {
         when (it) {
             is Or -> it.args
-            is True -> return True()
+            is True -> return True
             is False -> listOf()
             is And -> error("not cnf")
             else -> listOf(it)
         }
-    }.also { if (it.isEmpty()) return False() })
+    }.also { if (it.isEmpty()) return False })
 
 infix fun Expression.and(other: Expression): Expression =
     and(this, other)

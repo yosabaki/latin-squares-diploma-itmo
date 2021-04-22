@@ -24,96 +24,95 @@ enum class PrinterFormat {
     CNF
 }
 
+class DecodeCommand : Subcommand("decode", "Decode result of solver") {
+    val encoding by option(
+        ArgType.Choice<Encoding>(),
+        "encoding",
+        shortName = "e",
+        description = "encoding of solved latin square"
+    ).required()
+    val inputFile by option(
+        ArgType.String,
+        "output",
+        shortName = "o",
+        description = "filename of solved latin square encoding (read from console if parameter is not passed)"
+    ).required()
+    val fileFormat by option(
+        ArgType.Choice<OutputFormat>(),
+        "format",
+        shortName = "f",
+        description = "format of solved file"
+    ).default(DIMACS)
+    val n by option(ArgType.Int, "size", shortName = "n", description = "size of latin square").default(10)
+    val k by option(ArgType.Int, "count", shortName = "k", description = "number of latin squares").default(3)
+    override fun execute() {
+        val parserInit: (Int, Int, BufferedReader, OutputFormat) -> Parser = when (encoding) {
+            ARRAY -> ::ArrayParser
+            REDUCED_ARRAY -> ::ReducedArrayParser
+            LATIN_ONEHOT -> ::LatinParser
+            LATIN_LOG -> ::LogLatinParser
+            REDUCED_LATIN_ONEHOT -> ::ReducedLatinParser
+            REDUCED_LATIN_LOG -> ::ReducedLogLatinParser
+        }
+        val reader: BufferedReader = inputFile?.let { File(it).bufferedReader() } ?: System.`in`.bufferedReader()
+        val parser = parserInit(n, k, reader, fileFormat)
+        parser.parse()
+    }
+}
+
+class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
+    val encoding by option(
+        ArgType.Choice<Encoding>(),
+        "encoding",
+        shortName = "e",
+        description = "encoding of latin square"
+    ).required()
+    val outputFile by option(
+        ArgType.String,
+        "input",
+        shortName = "i",
+        description = "filename of file where to write encoding. (write to console if parameter is not passed)"
+    )
+    val cnfPrinterFormat by option(
+        ArgType.Choice<PrinterFormat>(),
+        "printMode",
+        shortName = "pm",
+        description = "print mode for cnf file."
+    ).default(CNF)
+    val n by option(ArgType.Int, "size", shortName = "n", description = "size of latin square").default(10)
+    val q by option(ArgType.Int, "count", shortName = "k", description = "number of latin squares").default(3)
+    val r by option(
+        ArgType.Int,
+        "index",
+        shortName = "r",
+        description = "index of quasiorthogonality (must be less or equal than \$n * \$n)"
+    ).required()
+
+    override fun execute() {
+        val cnfEncoderBuilder: LatinCnfEncoderBuilder = when (encoding) {
+            ARRAY -> OrthogonalArrayEncoderBuilder(false)
+            LATIN_LOG -> LogLatinSquareEncoderBuilder(false)
+            LATIN_ONEHOT -> LatinSquareEncoderBuilder(false)
+            REDUCED_ARRAY -> OrthogonalArrayEncoderBuilder(true)
+            REDUCED_LATIN_LOG -> LogLatinSquareEncoderBuilder(true)
+            REDUCED_LATIN_ONEHOT -> LatinSquareEncoderBuilder(true)
+        }
+        val cnf = cnfEncoderBuilder(n, q, r).cnf()
+        val printWriter = outputFile?.let { filename ->
+            File(filename).printWriter()
+        } ?: PrintWriter(System.out, true)
+        val cnfPrinter = when (cnfPrinterFormat) {
+            CNF -> CnfPrinter(printWriter)
+        }
+        cnfPrinter.use { it.print(cnf) }
+    }
+}
 
 @OptIn(ExperimentalCli::class)
 fun main(args: Array<String>) {
     val argParser = ArgParser("latin-square-encoding-generator")
 
-    class DecodeConfig : Subcommand("decode", "Decode result of solver") {
-        val encoding by option(
-            ArgType.Choice<Encoding>(),
-            "encoding",
-            shortName = "e",
-            description = "encoding of solved latin square"
-        ).required()
-        val inputFile by option(
-            ArgType.String,
-            "output",
-            shortName = "o",
-            description = "filename of solved latin square encoding (read from console if parameter is not passed)"
-        )
-        val fileFormat by option(
-            ArgType.Choice<OutputFormat>(),
-            "format",
-            shortName = "f",
-            description = "format of solved file"
-        ).default(DIMACS)
-        val n by option(ArgType.Int, "size", shortName = "n", description = "size of latin square").default(10)
-        val k by option(ArgType.Int, "count", shortName = "k", description = "number of latin squares").default(3)
-        override fun execute() {
-            val parserInit: (Int, Int, BufferedReader, OutputFormat) -> Parser = when (encoding) {
-                ARRAY -> ::ArrayParser
-                REDUCED_ARRAY -> ::ReducedArrayParser
-                LATIN_ONEHOT -> ::LatinParser
-                LATIN_LOG -> ::LogLatinParser
-                REDUCED_LATIN_ONEHOT -> ::ReducedLatinParser
-                REDUCED_LATIN_LOG -> ::ReducedLogLatinParser
-            }
-            val reader: BufferedReader = inputFile?.let { File(it).bufferedReader() } ?: System.`in`.bufferedReader()
-            val parser = parserInit(n, k, reader, fileFormat)
-            parser.parse()
-        }
-    }
-
-    class EncodeConfig : Subcommand("encode", "Encode latin object to solver") {
-        val encoding by option(
-            ArgType.Choice<Encoding>(),
-            "encoding",
-            shortName = "e",
-            description = "encoding of latin square"
-        ).required()
-        val outputFile by option(
-            ArgType.String,
-            "input",
-            shortName = "i",
-            description = "filename of file where to write encoding. (write to console if parameter is not passed)"
-        )
-        val cnfPrinterFormat by option(
-            ArgType.Choice<PrinterFormat>(),
-            "printMode",
-            shortName = "pm",
-            description = "print mode for cnf file."
-        ).default(CNF)
-        val n by option(ArgType.Int, "size", shortName = "n", description = "size of latin square").default(10)
-        val q by option(ArgType.Int, "count", shortName = "k", description = "number of latin squares").default(3)
-        val r by option(
-            ArgType.Int,
-            "index",
-            shortName = "r",
-            description = "index of quasiorthogonality (must be less or equal than \$n * \$n)"
-        ).required()
-
-        override fun execute() {
-            val cnfEncoderBuilder: LatinCnfEncoderBuilder = when (encoding) {
-                ARRAY -> OrthogonalArrayEncoderBuilder(false)
-                LATIN_LOG -> LogLatinSquareEncoderBuilder(false)
-                LATIN_ONEHOT -> LatinSquareEncoderBuilder(false)
-                REDUCED_ARRAY -> OrthogonalArrayEncoderBuilder(true)
-                REDUCED_LATIN_LOG -> LogLatinSquareEncoderBuilder(true)
-                REDUCED_LATIN_ONEHOT -> LatinSquareEncoderBuilder(true)
-            }
-            val cnf = cnfEncoderBuilder(n, q, r).cnf()
-            val printWriter = outputFile?.let { filename ->
-                File(filename).printWriter()
-            } ?: PrintWriter(System.out, true)
-            val cnfPrinter = when (cnfPrinterFormat) {
-                CNF -> CnfPrinter(printWriter)
-            }
-            cnfPrinter.use { it.print(cnf) }
-        }
-    }
-
-    argParser.subcommands(EncodeConfig(), DecodeConfig())
+    argParser.subcommands(EncodeCommand(), DecodeCommand())
     argParser.parse(args)
 
 //    val char = 'w'

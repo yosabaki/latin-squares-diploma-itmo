@@ -9,15 +9,15 @@ fun initReducedLogMatrix(n: Int, m: Int = n, q: Int = log2(n)): List<List<List<L
             List(q) { k ->
                 if (i == 0) {
                     if ((j shr k) and 1 == 1) {
-                        True()
+                        True
                     } else {
-                        False()
+                        False
                     }
                 } else if (j == 0) {
                     if ((i shr k) and 1 == 1) {
-                        True()
+                        True
                     } else {
-                        False()
+                        False
                     }
                 } else {
                     newVariable
@@ -41,15 +41,15 @@ fun initReducedArray(s: Int, size: Int, n: Int): List<List<List<Literal>>> =
             List(n) { k ->
                 if (i == 0) {
                     if (k == j / n) {
-                        True()
+                        True
                     } else {
-                        False()
+                        False
                     }
                 } else if (i == 1) {
                     if (k == j % n) {
-                        True()
+                        True
                     } else {
-                        False()
+                        False
                     }
                 } else {
                     newVariable
@@ -64,21 +64,21 @@ fun initReducedMatrix(n: Int, m: Int = n, q: Int = n): List<List<List<Literal>>>
             List(q) { k ->
                 if (i == 0) {
                     if (j == k) {
-                        True()
+                        True
                     } else {
-                        False()
+                        False
                     }
                 } else if (j == 0) {
                     if (i == k) {
-                        True()
+                        True
                     } else {
-                        False()
+                        False
                     }
                 } else {
                     if (k == j) {
-                        False()
+                        False
                     } else if (k == i) {
-                        False()
+                        False
                     } else {
                         newVariable
                     }
@@ -88,10 +88,10 @@ fun initReducedMatrix(n: Int, m: Int = n, q: Int = n): List<List<List<Literal>>>
     }
 
 fun logLatin(ceitinVars: List<List<List<Literal>>>): Expression {
-    return and(ceitinVars.map { matrix ->
-        and(matrix.map { or(it) })
-    } + ceitinVars.map { matrix ->
-        and(matrix.transpose().map { or(it) })
+    return and(ceitinVars.flatMap { matrix ->
+        listOf(codeSufficient(matrix.transpose()))
+    } + ceitinVars.transpose().flatMap { matrix ->
+        listOf(codeSufficient(matrix.transpose()))
     })
 }
 

@@ -4,7 +4,7 @@ import expressions.*
 import utils.*
 
 class LogLatinSquareEncoder(reduced: Boolean, val n: Int, val k: Int, val q: Int) : CnfEncoder {
-    val matrixes: List<List<List<List<Literal>>>> = if (reduced) {
+    private val coreVariables: List<List<List<List<Literal>>>> = if (reduced) {
         listOf(initReducedLogMatrix(n)) + (1 until k).map {
             initMatrix(n, n, log2(n))
         }
@@ -23,13 +23,12 @@ class LogLatinSquareEncoder(reduced: Boolean, val n: Int, val k: Int, val q: Int
             and((0 until n).map { i ->
                 and((0 until n).map { j ->
                     and((0 until n).map { v ->
-                        iff(ceitinVars[t][i][j][v], logEqual(matrixes[t][i][j], v))
+                        iff(ceitinVars[t][i][j][v], logEqual(coreVariables[t][i][j], v))
                     })
                 })
             })
         })
-        val ceitinVarsForLines = ceitinVars.map { it.map { it.transpose() }.transpose() }
-        val lines = ceitinVarsForLines.map { logLatin(it) }
+        val lines = ceitinVars.map { logLatin(it) }
         val ortho = (0 until k).flatMap { i ->
             (i + 1 until k).map { j ->
                 orthogonalLogSquare(ceitinVars[i], ceitinVars[j], q)

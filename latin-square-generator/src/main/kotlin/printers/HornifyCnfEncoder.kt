@@ -2,9 +2,9 @@ package printers
 
 import expressions.*
 
-class HornifyCnfEncoder(val hcnf: CNF, val n: Int = hcnf.args.size, val nop: Boolean) : CnfEncoder {
+class HornifyCnfEncoder(val hcnf: CNF, val n: Int = hcnf.clauses.size, val nop: Boolean) : CnfEncoder {
     override fun cnf(): WCNF {
-        val m = hcnf.args.size
+        val m = hcnf.clauses.size
         val variables = (1..m * 2).map { Variable("$it") }
         val mapKeys = (1..m).map { Not(Variable("$it")) } +
                 (1..m).map { Variable("$it") }
@@ -20,7 +20,7 @@ class HornifyCnfEncoder(val hcnf: CNF, val n: Int = hcnf.args.size, val nop: Boo
                 hard += Not(variables[i]) or Not(variables[i + m])
             }
         }
-        for (expr in hcnf.args) {
+        for (expr in hcnf.clauses) {
             hard += or(expr.args.map { mapping[it] ?: it })
         }
         return WCNF(CNF(and(hard) as And), CNF(soft))
