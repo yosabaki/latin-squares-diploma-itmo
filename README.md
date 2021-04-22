@@ -1,1 +1,1 @@
-# Applying the algorithms of solving SAT problem to searching of combinatoric objects related to latin squares.
+# Applying the algorithms of solving SAT problem to searching of combinatorial structures related to latin squares.
