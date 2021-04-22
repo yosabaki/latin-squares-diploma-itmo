@@ -87,15 +87,15 @@ fun main(args: Array<String>) {
         val r by option(ArgType.Int, "index", shortName = "i", description = "index of quaziOrthogonality").required()
 
         override fun execute() {
-            val cnfBuilderInit: (Int, Int, Int) -> CnfBuilder = when (encoding) {
-                ARRAY -> { n, q, r -> OrthogonalArrayBuilder(n, q + 2, r) }
-                REDUCED_ARRAY -> { n, q, r -> ReducedOrthogonalArrayBuilder(n, q + 2, r) }
-                LATIN_ONEHOT -> ::LatinSquareBuilder
-                LATIN_LOG -> ::LogLatinSquareBuilder
-                REDUCED_LATIN_ONEHOT -> ::ReducedLatinSquareBuilder
-                REDUCED_LATIN_LOG -> ::ReducedLogLatinSquareBuilder
+            val cnfEncoderBuilder: LatinCnfEncoderBuilder = when (encoding) {
+                ARRAY -> OrthogonalArrayEncoderBuilder(false)
+                LATIN_LOG -> LogLatinSquareEncoderBuilder(false)
+                LATIN_ONEHOT -> LatinSquareEncoderBuilder(false)
+                REDUCED_ARRAY -> OrthogonalArrayEncoderBuilder(true)
+                REDUCED_LATIN_LOG -> LogLatinSquareEncoderBuilder(true)
+                REDUCED_LATIN_ONEHOT -> LatinSquareEncoderBuilder(true)
             }
-            val cnf = cnfBuilderInit(n, q, r).cnf()
+            val cnf = cnfEncoderBuilder(n, q, r).cnf()
             val printWriter = outputFile?.let { filename ->
                 File(filename).printWriter()
             } ?: PrintWriter(System.out, true)

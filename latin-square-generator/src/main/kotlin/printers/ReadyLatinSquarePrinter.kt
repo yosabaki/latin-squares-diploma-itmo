@@ -5,7 +5,6 @@ import expressions.CNF
 import expressions.and
 import parsers.Parser
 import utils.*
-import java.io.PrintWriter
 
 class ReadyLatinSquarePrinter(
     val parser: Parser,
@@ -13,7 +12,7 @@ class ReadyLatinSquarePrinter(
     val ratios: IntArray,
     val k: Int,
     val q: Int,
-) : CnfBuilder {
+) : CnfEncoder {
     override fun cnf(): CNF {
         val matrixes = (0 until k).map { initMatrix(n) }
         val lines = matrixes.map { latin(it) }
