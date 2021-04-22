@@ -1,5 +1,5 @@
 import Encoding.*
-import PrinterFormat.*
+import PrinterFormat.CNF
 import kotlinx.cli.*
 import parsers.*
 import parsers.OutputFormat.DIMACS
@@ -34,22 +34,22 @@ fun main(args: Array<String>) {
             ArgType.Choice<Encoding>(),
             "encoding",
             shortName = "e",
-            description = "encoding of solved file"
+            description = "encoding of solved latin square"
         ).required()
         val inputFile by option(
             ArgType.String,
-            "inputFile",
-            shortName = "i",
-            description = "filename of dimacs file"
-        ).required()
+            "output",
+            shortName = "o",
+            description = "filename of solved latin square encoding (read from console if parameter is not passed)"
+        )
         val fileFormat by option(
             ArgType.Choice<OutputFormat>(),
             "format",
             shortName = "f",
-            description = "format of dimacs file"
+            description = "format of solved file"
         ).default(DIMACS)
-        val n by option(ArgType.Int, "matrixSize", shortName = "n", description = "size of latinSquare").default(10)
-        val q by option(ArgType.Int, "matrixCount", shortName = "q", description = "count of matrixes").default(3)
+        val n by option(ArgType.Int, "size", shortName = "n", description = "size of latin square").default(10)
+        val k by option(ArgType.Int, "count", shortName = "k", description = "number of latin squares").default(3)
         override fun execute() {
             val parserInit: (Int, Int, BufferedReader, OutputFormat) -> Parser = when (encoding) {
                 ARRAY -> ::ArrayParser
@@ -59,32 +59,39 @@ fun main(args: Array<String>) {
                 REDUCED_LATIN_ONEHOT -> ::ReducedLatinParser
                 REDUCED_LATIN_LOG -> ::ReducedLogLatinParser
             }
-            val parser = parserInit(n, q, File(inputFile).bufferedReader(), fileFormat)
+            val reader: BufferedReader = inputFile?.let { File(it).bufferedReader() } ?: System.`in`.bufferedReader()
+            val parser = parserInit(n, k, reader, fileFormat)
             parser.parse()
         }
     }
+
     class EncodeConfig : Subcommand("encode", "Encode latin object to solver") {
         val encoding by option(
             ArgType.Choice<Encoding>(),
             "encoding",
             shortName = "e",
-            description = "encoding of object to solve"
+            description = "encoding of latin square"
         ).required()
         val outputFile by option(
             ArgType.String,
-            "outputFile",
-            shortName = "o",
-            description = "filename of dimacs file"
+            "input",
+            shortName = "i",
+            description = "filename of file where to write encoding. (write to console if parameter is not passed)"
         )
         val cnfPrinterFormat by option(
             ArgType.Choice<PrinterFormat>(),
-            "cnfPrintFormat",
-            shortName = "pf",
-            description = "print format of cnf"
+            "printMode",
+            shortName = "pm",
+            description = "print mode for cnf file."
         ).default(CNF)
-        val n by option(ArgType.Int, "matrixSize", shortName = "n", description = "size of latinSquare").default(10)
-        val q by option(ArgType.Int, "matrixCount", shortName = "q", description = "count of matrixes").default(3)
-        val r by option(ArgType.Int, "index", shortName = "i", description = "index of quaziOrthogonality").required()
+        val n by option(ArgType.Int, "size", shortName = "n", description = "size of latin square").default(10)
+        val q by option(ArgType.Int, "count", shortName = "k", description = "number of latin squares").default(3)
+        val r by option(
+            ArgType.Int,
+            "index",
+            shortName = "r",
+            description = "index of quasiorthogonality (must be less or equal than \$n * \$n)"
+        ).required()
 
         override fun execute() {
             val cnfEncoderBuilder: LatinCnfEncoderBuilder = when (encoding) {
