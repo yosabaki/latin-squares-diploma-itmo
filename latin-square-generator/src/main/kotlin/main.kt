@@ -3,6 +3,7 @@ import PrinterFormat.CNF
 import kotlinx.cli.*
 import parsers.*
 import parsers.OutputFormat.DIMACS
+import parsers.OutputFormat.MINISAT
 import printers.*
 import java.io.BufferedReader
 import java.io.File
@@ -24,6 +25,7 @@ enum class PrinterFormat {
     CNF
 }
 
+@OptIn(ExperimentalCli::class)
 class DecodeCommand : Subcommand("decode", "Decode result of solver") {
     val encoding by option(
         ArgType.Choice<Encoding>(),
@@ -60,6 +62,7 @@ class DecodeCommand : Subcommand("decode", "Decode result of solver") {
     }
 }
 
+@OptIn(ExperimentalCli::class)
 class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
     val encoding by option(
         ArgType.Choice<Encoding>(),
@@ -79,6 +82,18 @@ class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
         shortName = "pm",
         description = "print mode for cnf file."
     ).default(CNF)
+    val withPropagated by option(
+        ArgType.String,
+        "propagated",
+        "p",
+        description = "filename of result with variables to propagate"
+    )
+    val propagateList by option(
+        ArgType.String,
+        "propagatedList",
+        "pl",
+        description = "filename with list of propagated variables"
+    )
     val n by option(ArgType.Int, "size", shortName = "n", description = "size of latin square").default(10)
     val q by option(ArgType.Int, "count", shortName = "k", description = "number of latin squares").default(3)
     val r by option(
@@ -97,7 +112,16 @@ class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
             REDUCED_LATIN_LOG -> LogLatinSquareEncoderBuilder(true)
             REDUCED_LATIN_ONEHOT -> LatinSquareEncoderBuilder(true)
         }
-        val cnf = cnfEncoderBuilder(n, q, r).cnf()
+        val cnf = cnfEncoderBuilder(n, q, r).cnf().let {
+            if (withPropagated != null) {
+                val propagated = ReducedLatinParser(n, q, File(withPropagated!!).bufferedReader(), MINISAT).apply { parse() }
+                println("propagated ${propagated.parsedUnits.size}/${it.coreVariables.size} literals")
+                println()
+                it.propagate(propagated.parsedUnits)
+            } else {
+                it
+            }
+        }
         val printWriter = outputFile?.let { filename ->
             File(filename).printWriter()
         } ?: PrintWriter(System.out, true)
@@ -110,6 +134,9 @@ class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
 
 @OptIn(ExperimentalCli::class)
 fun main(args: Array<String>) {
+//    val parser = ReducedLatinParser(8, 3, File("../metacdcl/out").bufferedReader(), MINISAT).apply { parse() }
+//    val cnf = LatinSquareEncoderBuilder(false)(8,3, 1).cnf()
+//    cnf.propagate(parser.parsedUnits)
     val argParser = ArgParser("latin-square-encoding-generator")
 
     argParser.subcommands(EncodeCommand(), DecodeCommand())

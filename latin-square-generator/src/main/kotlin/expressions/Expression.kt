@@ -1,10 +1,40 @@
 package expressions
 
+import utils.Net
+
+data class MetaVariable(
+    val matrix: Int,
+    val row: Int,
+    val column: Int,
+    val values: Map<Int, List<Expression>>
+) {
+    fun propagate(units: Map<Variable, Literal>): MetaVariable? {
+        val new = mutableMapOf<Int, List<Expression>>()
+        for (entry in values) {
+            val expr = and(entry.value).propagate(units)
+            if (expr == False) {
+                continue
+            } else if (expr == True) {
+                return null
+            } else {
+                new += entry.key to expr.args.filter { it != False && it != True }
+            }
+        }
+        if (new.isEmpty()) {
+            return null;
+        }
+        return this.copy(values = new)
+    }
+}
+
 open class CNF(
     val clauses: List<Expression>,
     val variables: Set<String>,
     val coreVariables: List<Variable> = emptyList(),
-    val metaVariables: List<List<Variable>> = emptyList()
+    val metaVariables: List<MetaVariable> = emptyList(),
+    val incremental: List<Variable> = emptyList(),
+    val net: Net = Net(),
+    val weights: List<Int> = listOf()
 ) {
     override fun toString(): String {
         val sb = StringBuilder()
@@ -14,10 +44,37 @@ open class CNF(
         }
         if (metaVariables.isNotEmpty()) {
             sb.append("c metaVariables:\n")
-            metaVariables.forEach {
-                sb.append(it.joinToString(" ", "c ", "\n") { "$it" })
+            metaVariables.forEach { metaVar ->
+                sb.append("c newVar ${metaVar.matrix} ${metaVar.row} ${metaVar.column}:\n")
+                for (entry in metaVar.values) {
+                    sb.append("c ${entry.key} ${entry.value.joinToString(" ") { "$it" }}\n")
+                }
             }
         }
+        if (incremental.isNotEmpty()) {
+            sb.append("c incrementalVariables:\n")
+            sb.append(incremental.joinToString(" ", "c ", "\n") { "$it" })
+        }
+        if (net.nodes.isNotEmpty()) {
+            sb.append("c computationalNet:\n")
+            sb.append(net.nodes.joinToString("\nc ", "c ", "\n") { "$it" })
+        }
+        if (weights.isNotEmpty()) {
+            sb.append("c weights:\n")
+            sb.append("c")
+            for (i in weights.indices) {
+                sb.append(" ${weights[i]}")
+            }
+            sb.append('\n')
+        }
+        sb.append("c toCompute:\n")
+        sb.append("c")
+        for (i in clauses.indices) {
+            if (clauses[i].isImportant) {
+                sb.append(" $i")
+            }
+        }
+        sb.append("\n")
         val prefix = "p cnf ${variables.size} ${clauses.size}\n"
         val operand = " 0\n"
         val postfix = " 0\n"
@@ -26,21 +83,38 @@ open class CNF(
     }
 
     open fun propagate(units: Map<Variable, Literal>): CNF {
-        val newClauses = propagateClauses(clauses, units)
+        val newClauses = and(propagateClauses(clauses, units)).args.distinct()
         return CNF(
             newClauses,
             variables,
             filterNotPropagated(coreVariables, units),
-            metaVariables.map { filterNotPropagated(it, units) }.filter { it.isNotEmpty() }
+            metaVariables.mapNotNull { it.propagate(units) },
+            incremental,
+            net
         )
     }
 
-    constructor(and: And) : this(and.args, and.variables)
-    constructor(and: And, core: List<Variable>) : this(and.args, and.variables, core)
-    constructor(and: And, core: List<Variable>, meta: List<List<Variable>>) : this(and.args, and.variables, core, meta)
+    constructor(and: And) : this(and.args.distinct(), and.variables)
+    constructor(and: And, core: List<Variable>) : this(and.args.distinct(), and.variables, core)
+    constructor(and: And, core: List<Variable>, meta: List<MetaVariable>) : this(
+        and.args.distinct(),
+        and.variables,
+        core,
+        meta
+    )
+
+    constructor(
+        and: And,
+        core: List<Variable>,
+        meta: List<MetaVariable> = emptyList(),
+        incremental: List<Variable>,
+        net: Net,
+        weights: List<Int> = listOf()
+    ) : this(and.args.distinct(), and.variables, core, meta, incremental, net, weights)
 }
+
 private fun filterNotPropagated(variables: List<Variable>, units: Map<Variable, Literal>) =
-    variables.filter{ it !in units.keys }
+    variables.filter { it !in units.keys }
 
 private fun propagateClauses(clauses: List<Expression>, units: Map<Variable, Literal>) =
     clauses.map { it.propagate(units) } + and(units.map { (variable, literal) ->
@@ -82,9 +156,14 @@ class WCNF(
     constructor(hard: CNF, soft: CNF) : this(hard.clauses, soft.clauses, hard.variables + soft.variables)
 }
 
+sealed class ILPMarker
+
+data class VariabledExpression(val expr: Expression, val variables: List<Variable> = emptyList())
+
 sealed class Expression(
     private val defArgs: List<Expression>,
-    val variables: Set<String> = defArgs.fold(mutableSetOf()) { a, b -> a.apply { addAll(b.variables) } }
+    val variables: Set<String> = defArgs.fold(mutableSetOf()) { a, b -> a.apply { addAll(b.variables) } },
+    var isImportant: Boolean = true
 ) {
     open val args: List<Expression>
         get() = defArgs
@@ -146,7 +225,7 @@ class Not(private val expr: Expression) : Expression(listOf(expr)) {
 
     override fun equals(other: Any?): Boolean =
         if (other is Not) {
-            other.args == args
+            other.expr == expr
         } else {
             false
         }
@@ -200,19 +279,19 @@ fun and(exprs: Collection<Expression>) = and(*exprs.toTypedArray())
 fun and(vararg exprs: Expression): Expression =
     And(exprs.flatMap {
         when (it) {
-            is And -> it.args
+            is And -> and(it.args).args
             is True -> listOf()
             is False -> return False
             else -> listOf(it)
         }
-    })
+    }.also { if (it.isEmpty()) return True })
 
 fun or(exprs: Collection<Expression>) = or(*exprs.toTypedArray())
 
 fun or(vararg exprs: Expression): Expression =
     Or(exprs.flatMap {
         when (it) {
-            is Or -> it.args
+            is Or -> or(it.args).args
             is True -> return True
             is False -> listOf()
             is And -> error("not cnf")

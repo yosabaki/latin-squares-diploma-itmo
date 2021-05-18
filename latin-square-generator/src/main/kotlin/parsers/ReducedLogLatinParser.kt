@@ -8,18 +8,31 @@ class ReducedLogLatinParser(val q: Int, val matrixCount: Int, reader: BufferedRe
     Parser(reader, format) {
 
     override fun construct(variables: List<Boolean>) : List<List<List<Int>>> {
-        val reducedVarMatrix = initReducedLogMatrix(q)
+        val reducedVarMatrix = initFirstReducedLogMatrix(q)
         val reducedMatrix = reducedVarMatrix.map { line ->
             line.map { vars ->
                 val nVars = vars.count { it is Variable }
-                parseIntLog(readNVars(nVars), vars)
+                parseIntLog(readNVars(nVars), vars).let {
+                    if (it >= q) {
+                        -1
+                    } else {
+                        it + 1
+                    }
+                }
             }
         }
-        val varMatrixes = (0 until matrixCount - 1).map { initMatrix(q, q, log2(q)) }
+        val varMatrixes = (0 until matrixCount - 1).map { initReducedLogMatrix(q) }
         val matrixes = listOf(reducedMatrix) + varMatrixes.map { matrix ->
             matrix.map { line ->
                 line.map { vars ->
-                    parseIntLog(readNVars(log2(q)), vars)
+                    val nVars = vars.count { it is Variable }
+                     parseIntLog(readNVars(nVars), vars).let {
+                         if (it >= q) {
+                             -1
+                         } else {
+                             it + 1
+                         }
+                     }
                 }
             }
         }
@@ -35,7 +48,7 @@ class ReducedLogLatinParser(val q: Int, val matrixCount: Int, reader: BufferedRe
 //        val svars = variables.subList(matrixCount * q * q * q + q * q + q * q * q * q, variables.size - 1)
         (0 until matrixCount).forEach { i ->
             (i + 1 until matrixCount).forEach { j ->
-                println(matrixes[i].flatten().zip(matrixes[j].flatten()).distinct().size)
+                println(matrixes[i].flatten().zip(matrixes[j].flatten()).filter { it.first != -1 && it.second != -1 }.distinct().size)
             }
         }
         matrixes.forEach { matrix ->

@@ -27,8 +27,12 @@ class OrthogonalArrayEncoder(reduced: Boolean, val n: Int, val s: Int, val q: In
             }
         }
         val core = List(coreSize) { Variable("${it + 1}") }
-        val meta = List(n * n * s) { i -> List(n) { Variable("${i * n + it + 1}") } }
-        return CNF(and(and(lines), and(firstPair), and(secondPair)) as And, core, meta)
+//        val meta = List(n * n * s) { i -> List(n) { Variable("${i * n + it + 1}") } }
+        return CNF(
+            and(and(lines), and(firstPair.map { it.expr }), and(secondPair.map { it.expr })) as And,
+            core,
+//            meta
+        )
     }
 }
 

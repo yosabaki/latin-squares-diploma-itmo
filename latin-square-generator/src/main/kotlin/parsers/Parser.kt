@@ -1,11 +1,13 @@
 package parsers
 
+import expressions.False
 import expressions.Literal
 import expressions.True
 import expressions.Variable
 import java.io.BufferedReader
 import parsers.OutputFormat.*
 import parsers.Result.*
+import utils.varCounter
 
 enum class OutputFormat {
     MINISAT,
@@ -19,7 +21,17 @@ enum class Result {
     UNKNOWN
 }
 
+const val RESET = "${27.toChar()}[0m"
+const val GREEN = "${27.toChar()}[32m"
+const val RED = "${27.toChar()}[31m"
+const val YELLOW = "${27.toChar()}[33m"
+
 abstract class Parser(val reader: BufferedReader, val format: OutputFormat = MINISAT) {
+    init {
+        varCounter = 0
+    }
+    var parsedUnits: MutableMap<Variable, Literal> = mutableMapOf()
+
     fun parseHeader(): Result {
         var line = reader.readLine()
         val sat: String
@@ -82,17 +94,24 @@ abstract class Parser(val reader: BufferedReader, val format: OutputFormat = MIN
 
 
     protected fun parseIntOneHot(values: List<Boolean>, vars: List<Literal>): Int {
-        var result = 0
+        var result = -1
+        var j = 0
         for (t in vars.indices) {
             if (vars[t] is True) {
-                return t + 1
+                if (result != -1) {
+                    return -1
+                }
+                result = t + 1
             } else if (vars[t] is Variable) {
-                if (values[result++]) {
-                    return t + 1
+                if (values[j++]) {
+                    if (result != -1) {
+                        return -1
+                    }
+                    result = t + 1
                 }
             }
         }
-        error("result is invalid")
+        return result
     }
 
     var currentIndex = 0

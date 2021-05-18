@@ -1,9 +1,9 @@
 package parsers
 
+import expressions.False
+import expressions.True
 import expressions.Variable
-import utils.initMatrix
-import utils.initReducedMatrix
-import utils.transpose
+import utils.*
 import java.io.BufferedReader
 
 class ReducedLatinParser(
@@ -13,18 +13,23 @@ class ReducedLatinParser(
     format: OutputFormat
 ) : Parser(reader, format) {
     override fun construct(variables: List<Boolean>): List<List<List<Int>>> {
-        val reducedVarMatrix = initReducedMatrix(n)
-        val reducedMatrix = reducedVarMatrix.map { line ->
-            line.map { vars ->
-                val nVars = vars.count { it is Variable }
-                parseIntOneHot(readNVars(nVars), vars)
-            }
-        }
-        val varMatrixes = (0 until k - 1).map { initMatrix(n) }
-        val matrixes = listOf(reducedMatrix) + varMatrixes.map { matrix ->
-            matrix.map { line ->
-                line.map { vars ->
-                    parseIntOneHot(readNVars(n), vars)
+        val otherVarMatrixes = (0 until k).map { initMatrix(n) }
+        varCounter = 0
+        val reducedVarMatrix = initFirstReducedMatrix(n)
+        val varMatrixes = listOf(reducedVarMatrix) + (0 until k - 1).map { initReducedMatrix(n) }
+        val matrixes = varMatrixes.mapIndexed { i, matrix ->
+            matrix.mapIndexed { j, line ->
+                line.mapIndexed { l, vars ->
+                    val nVars = vars.count { it is Variable }
+                    parseIntOneHot(readNVars(nVars), vars).also {
+                        otherVarMatrixes[i][j][l].forEachIndexed { q, otherVar ->
+                            parsedUnits[otherVar] = if (q == it - 1) {
+                                True
+                            } else {
+                                False
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -41,15 +46,46 @@ class ReducedLatinParser(
 //        val svars = variables.subList(matrixCount * q * q * q + q * q + q * q * q * q, variables.size - 1)
         (0 until k).forEach { i ->
             (i + 1 until k).forEach { j ->
-                println(matrixes[i].flatten().zip(matrixes[j].flatten()).distinct().size)
+                println(matrixes[i].flatten().zip(matrixes[j].flatten()).filter { it.first != -1 && it.second != -1 }
+                    .distinct().size)
             }
         }
-        matrixes.forEach { matrix ->
-            assert(matrix.all { it.distinct().size == it.size })
-            assert(matrix.transpose().all { it.distinct().size == it.size })
-            matrix.forEach { array ->
-                println(array.joinToString(" ") {
-                    "%2d".format(it)
+        matrixes.indices.forEach { i ->
+            val matrix = matrixes[i]
+            val distinctLines = matrix.map { array ->
+                array.groupingBy { it }.eachCount()
+            }
+            val distinctColumns = matrix.transpose().map { array ->
+                array.groupingBy { it }.eachCount()
+            }
+            println()
+            matrix.forEachIndexed { j, array ->
+                println(array.indices.joinToString(" ") { index ->
+                    (if (distinctLines[j].size == array.size && distinctColumns[index].size == array.size) {
+                        GREEN
+                    } else if (distinctLines[j][array[index]] != 1 || distinctColumns[index][array[index]] != 1) {
+                        for (k in otherVarMatrixes[i].indices) {
+                            for (variable in otherVarMatrixes[i][k][index]) {
+                                parsedUnits.remove(variable)
+                            }
+                        }
+                        for (k in otherVarMatrixes[i][j].indices) {
+                            for (variable in otherVarMatrixes[i][j][k]) {
+                                parsedUnits.remove(variable)
+                            }
+                        }
+                        RED
+                    } else if (distinctLines[j].size == array.size || distinctColumns[index].size == array.size) {
+                        for (variable in otherVarMatrixes[i][j][index]) {
+                            parsedUnits.remove(variable)
+                        }
+                        YELLOW
+                    } else {
+                        for (variable in otherVarMatrixes[i][j][index]) {
+                            parsedUnits.remove(variable)
+                        }
+                        RESET
+                    }) + "%2d".format(array[index])
                 })
             }
             println()

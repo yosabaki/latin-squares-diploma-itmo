@@ -3,10 +3,10 @@ package printers
 import expressions.*
 import utils.*
 
-class LogLatinSquareEncoder(reduced: Boolean, val n: Int, val k: Int, val q: Int) : CnfEncoder {
+class LogLatinSquareEncoder(private val reduced: Boolean, val n: Int, val k: Int, val q: Int) : CnfEncoder {
     private val coreVariables: List<List<List<List<Literal>>>> = if (reduced) {
-        listOf(initReducedLogMatrix(n)) + (1 until k).map {
-            initMatrix(n, n, log2(n))
+        listOf(initFirstReducedLogMatrix(n)) + (1 until k).map {
+            initReducedLogMatrix(n)
         }
     } else {
         (0 until k).map {
@@ -18,6 +18,11 @@ class LogLatinSquareEncoder(reduced: Boolean, val n: Int, val k: Int, val q: Int
     override fun cnf(): CNF {
         val ceitinVars = (0 until k).map {
             initMatrix(n, n, n)
+        }
+        val breakingSymmetry = if (reduced) {
+            breakingSymmetry(ceitinVars[0][1])
+        } else {
+            and()
         }
         val ceitinEqExprs = and((0 until k).map { t ->
             and((0 until n).map { i ->
@@ -35,7 +40,12 @@ class LogLatinSquareEncoder(reduced: Boolean, val n: Int, val k: Int, val q: Int
             }
         }
         val core = List(coreSize) { Variable("${it + 1}") }
-        return CNF((ceitinEqExprs and and(lines) and and(ortho)) as And, core)
+        return CNF(
+            (ceitinEqExprs and and(lines) and and(ortho.map { it.expr }) and breakingSymmetry) as And,
+            core,
+            incremental = ortho.map { it.variables }.transpose().flatten(),
+            net = net
+        )
     }
 }
 
