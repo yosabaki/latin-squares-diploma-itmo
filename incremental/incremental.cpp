@@ -83,16 +83,17 @@ int main(int argc, char *argv[]) {
     SATSolver solver;
     vector<Lit> clause;
 
-    //Let's use 4 threads
-    solver.set_num_threads(4);
-    // solver.set_timeout_all_calls(1);
-
-    if (argc != 3) {
-        std::cout << "Usage: incremental [$inputfile] [$outputfile]";
+    if (argc < 3 || argc > 4) {
+        std::cout << "Usage: incremental [$inputfile] [$outputfile] [$threadCount = 4]\n";
         return 1;
     }
     std::string inputfile = argv[1];
     std::string outputfile = argv[2];
+    uint32_t threadCount = 4;
+    if (argc == 4) {
+        threadCount = atoi(argv[3]);
+    }
+    solver.set_num_threads(threadCount);
     std::cout << "Reading clauses\n";
     vector<vector<Lit>> mainClauses = parseClauses(inputfile);
     vector<Lit> additionalClauses = parseLiterals(inputfile);
