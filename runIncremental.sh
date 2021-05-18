@@ -1,3 +1,4 @@
+#!/bin/sh
 export LD_LIBRARY_PATH=./cryptominisat/build/lib
 
 ENCODER="java -jar ./latin-square-generator/build/libs/latin-square-generator-1.0-SNAPSHOT.jar";
