@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdlib>
 #include <ctime>
+#include <cstring>
 #include "cnf/CNF.h"
 #include "solver/HillClimbingSolver.h"
 
@@ -173,6 +174,12 @@ int main(int argc, char **args) {
     if (argc > 5) {
         bagSizeEnd = atoi(args[5]);
     }
+    bool log = false;
+    for (uint32_t arg = 1; arg < argc; arg++) {
+        if (strcmp("-l", args[arg]) == 0) {
+            log = true;
+        }
+    }
     std::cout << "c core variables:" << std::endl;
     std::cout.flush();
     for (auto &variable: cnf.coreVariables) {
@@ -187,7 +194,7 @@ int main(int argc, char **args) {
     // std:: cout << "0\n";
     // }
     auto solver = HillClimbingSolver(cnf, first);
-    auto solved = solver.solve(thread_count, bagSizeStart, bagSizeEnd);
+    auto solved = solver.solve(thread_count, bagSizeStart, bagSizeEnd, log, outputfile);
     if (argc > 2) {
         std::ofstream fout(outputfile);
         fout << "SAT\n";

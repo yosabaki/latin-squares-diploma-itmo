@@ -34,7 +34,12 @@ struct HillClimbingSolver {
 
     explicit HillClimbingSolver(CNF &cnf, const std::vector<uint8_t> &first);
 
-    std::vector<uint8_t> solve(const uint32_t &thread_count, const uint32_t &bagSizeStart, const uint32_t &bagSizeEnd);
+    std::vector<uint8_t>
+    solve(const uint32_t &thread_count,
+          const uint32_t &bagSizeStart,
+          const uint32_t &bagSizeEnd,
+          const bool log,
+          const std::string &outputfile = "");
 
 private:
 

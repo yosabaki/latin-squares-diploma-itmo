@@ -7,6 +7,8 @@
 #include <random>
 #include "../utils/thread_pool.hpp"
 #include <csignal>
+#include <sstream>
+#include <fstream>
 
 HillClimbingSolver::HillClimbingSolver(CNF &cnf, const std::vector<uint8_t> &first) : net(std::move(cnf.net)) {
     satisfiedSum = 0;
@@ -322,8 +324,12 @@ HillClimbingSolver::random_combination_including(uint32_t n, uint32_t k, const s
     return combination;
 }
 
-std::vector<uint8_t>
-HillClimbingSolver::solve(const uint32_t &thread_count, const uint32_t &bagSizeStart, const uint32_t &bagSizeEnd) {
+std::vector<uint8_t> HillClimbingSolver::solve(
+        const uint32_t &thread_count,
+        const uint32_t &bagSizeStart,
+        const uint32_t &bagSizeEnd,
+        const bool log,
+        const std::string &outputfile) {
     bool changed = true;
     signal(SIGINT, handler);
     signal(SIGTERM, handler);
@@ -530,6 +536,25 @@ HillClimbingSolver::solve(const uint32_t &thread_count, const uint32_t &bagSizeS
         }
         if (stopped) {
             changed = false;
+        }
+        if (log) {
+            std::string logFile;
+            {
+                std::ostringstream s;
+                s << outputfile << "_" << q;
+                logFile = s.str();
+            }
+            std::cout << logFile << std::endl;
+            std::ofstream fout(logFile);
+            fout << "SAT\n";
+            for (uint32_t i = 1; i < propagated.size(); i++) {
+                if (propagated[i] == 0) {
+                    fout << '-';
+                } else if (propagated[i] == 2) {
+                    fout << '?';
+                }
+                fout << i << ' ';
+            }
         }
     }
 
