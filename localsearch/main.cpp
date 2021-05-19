@@ -164,20 +164,34 @@ int main(int argc, char **args) {
     if (argc > 3) {
         thread_count = atoi(args[3]);
     }
+    bool log = false;
     if (argc > 6) {
-        std::string inputfile = args[6];
-        readFirst(inputfile, first);
+        if (strcmp("-l", args[6]) == 0) {
+            log = true;
+        } else {
+            std::string inputfile = args[6];
+            readFirst(inputfile, first);
+        }
     }
     if (argc > 4) {
-        bagSizeStart = atoi(args[4]);
+        if (strcmp("-l", args[4]) == 0) {
+            log = true;
+        } else {
+            bagSizeStart = atoi(args[4]);
+        }
     }
     if (argc > 5) {
-        bagSizeEnd = atoi(args[5]);
-    }
-    bool log = false;
-    for (uint32_t arg = 1; arg < argc; arg++) {
-        if (strcmp("-l", args[arg]) == 0) {
+        if (strcmp("-l", args[5]) == 0) {
             log = true;
+        } else {
+            bagSizeEnd = atoi(args[5]);
+        }
+    }
+    if (!log) {
+        for (uint32_t arg = 1; arg < argc; arg++) {
+            if (strcmp("-l", args[arg]) == 0) {
+                log = true;
+            }
         }
     }
     std::cout << "c core variables:" << std::endl;
