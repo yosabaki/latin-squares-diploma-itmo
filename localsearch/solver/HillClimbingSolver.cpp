@@ -555,6 +555,14 @@ std::vector<uint8_t> HillClimbingSolver::solve(
                 }
                 fout << i << ' ';
             }
+            {
+                std::ostringstream s;
+                s << outputfile << "_c" << q;
+                std::ofstream cfout(s.str());
+                cfout << "c q: " << q << std::endl;
+                cfout << "c n: " << n << std::endl;
+                cfout << "c bagSize: " << bagSize << std::endl;
+            }
         }
     }
 
