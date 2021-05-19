@@ -104,12 +104,12 @@ fun getCycles(n: Int): List<List<Int>> {
     return cycles
 }
 
-fun breakingSymmetry(variables: List<List<Literal>>): Expression {
+fun breakingSymmetry(variables: List<List<Literal>>, firstIndex: Int = 0, cycle: Int = -1): Expression {
     val cycles = getCycles(variables.size)
     val breakingSymmetryVars = List(cycles.size) { newVariable }
     val phis = cycles.indices.map { i ->
         val cycle = cycles[i]
-        var index = 0
+        var index = firstIndex
         val eqExpr = and(cycle.flatMap { n ->
             (0 until n).map {
                 equal(variables[index + it], index + 1 + (it + 1) % n)
@@ -119,7 +119,7 @@ fun breakingSymmetry(variables: List<List<Literal>>): Expression {
         })
         iff(breakingSymmetryVars[i], eqExpr)
     }
-    return and(phis) and or(breakingSymmetryVars) and breakingSymmetryVars.last()
+    return and(phis) and or(breakingSymmetryVars) and (if (cycle == -1) { True } else { breakingSymmetryVars[cycle] })
 }
 
 

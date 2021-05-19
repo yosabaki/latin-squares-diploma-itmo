@@ -99,7 +99,7 @@ class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
         "weighted",
         "w",
         description = "add weights to latin disjuncts"
-    )
+    ).default(false)
     val n by option(ArgType.Int, "size", shortName = "n", description = "size of latin square").default(10)
     val q by option(ArgType.Int, "count", shortName = "k", description = "number of latin squares").default(3)
     val r by option(
@@ -108,6 +108,21 @@ class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
         shortName = "r",
         description = "index of quasiorthogonality (must be less or equal than \$n * \$n)"
     ).required()
+    val breakingSymmetryType by option(
+        ArgType.Choice<BreakingSymmetryType>(),
+        "breakingSymmetryType",
+        "bs",
+        "breaking symmetry type.\n" +
+                "first   - two first rows of first square denotes sorted cycle.\n" +
+                "seccond - first rows of first and second square denotes sorted cycle\n"
+    ).default(BreakingSymmetryType.NONE)
+
+    val breakingSymmetryCycleNumber by option(
+        ArgType.Int,
+        "breakingSymmetryCycle",
+        "bc",
+        "fix cycle in breaking symmetry by cycle with index \$bc"
+    ).default(-1)
 
     override fun execute() {
         val cnfEncoderBuilder: LatinCnfEncoderBuilder = when (encoding) {
@@ -115,8 +130,8 @@ class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
             LATIN_LOG -> LogLatinSquareEncoderBuilder(false)
             LATIN_ONEHOT -> LatinSquareEncoderBuilder(false, weighted)
             REDUCED_ARRAY -> OrthogonalArrayEncoderBuilder(true)
-            REDUCED_LATIN_LOG -> LogLatinSquareEncoderBuilder(true, weighted)
-            REDUCED_LATIN_ONEHOT -> LatinSquareEncoderBuilder(true)
+            REDUCED_LATIN_LOG -> LogLatinSquareEncoderBuilder(true)
+            REDUCED_LATIN_ONEHOT -> LatinSquareEncoderBuilder(true, weighted, breakingSymmetryType, breakingSymmetryCycleNumber)
         }
         val cnf = cnfEncoderBuilder(n, q, r).cnf().let {
             if (withPropagated != null) {
