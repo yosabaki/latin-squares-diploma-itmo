@@ -30,15 +30,28 @@ class LatinParser(val q: Int, val matrixCount: Int, reader: BufferedReader, form
                 println(matrixes[i].flatten().zip(matrixes[j].flatten()).distinct().size)
             }
         }
-        matrixes.forEach { matrix ->
-            assert(matrix.all { it.distinct().size == it.size })
-            assert(matrix.transpose().all { it.distinct().size == it.size })
-            matrix.forEach { array ->
-                println(array.joinToString(" ") {
-                    "%2d".format(it)
-                })
+        matrixes.forEachIndexed {i, matrix ->
+            val distinctLines = matrix.map { array ->
+                array.groupingBy { it }.eachCount()
+            }
+            val distinctColumns = matrix.transpose().map { array ->
+                array.groupingBy { it }.eachCount()
             }
             println()
+            matrix.forEachIndexed { j, array ->
+                println(array.indices.joinToString(" ") { index ->
+                    (if (distinctLines[j].size == array.size && distinctColumns[index].size == array.size) {
+                        GREEN
+                    } else if (distinctLines[j][array[index]] != 1 || distinctColumns[index][array[index]] != 1) {
+                        RED
+                    } else if (distinctLines[j].size == array.size || distinctColumns[index].size == array.size) {
+                        YELLOW
+                    } else {
+                        RESET
+                    }) + "%2d".format(array[index])
+                })
+            }
+            println(RESET)
         }
         return matrixes
     }

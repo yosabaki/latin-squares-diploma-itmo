@@ -88,7 +88,7 @@ class ReducedLatinParser(
                     }) + "%2d".format(array[index])
                 })
             }
-            println()
+            println(RESET)
         }
         return matrixes
     }
