@@ -3,7 +3,13 @@ package printers
 import expressions.*
 import utils.*
 
-class LatinSquareEncoder(private val reduced: Boolean, val n: Int, val k: Int, val q: Int) : CnfEncoder {
+class LatinSquareEncoder(
+    private val reduced: Boolean,
+    private val weighted: Boolean,
+    val n: Int,
+    val k: Int,
+    val q: Int
+) : CnfEncoder {
     private val coreVariables = if (reduced) {
         listOf(initFirstReducedMatrix(n)) + (1 until k).map {
             initReducedMatrix(n)
@@ -18,7 +24,13 @@ class LatinSquareEncoder(private val reduced: Boolean, val n: Int, val k: Int, v
     override fun cnf(): CNF {
         val weights = mutableListOf<Int>()
         val lines = coreVariables.map { latin(it) }
-        weights += List(and(lines).args.size) { 1 }
+        weights += List(and(lines).args.size) {
+            if (weighted) {
+                n
+            } else {
+                1
+            }
+        }
         val breakingSymmetry = if (reduced) {
 //            and()
             breakingSymmetry(coreVariables[0][1])
@@ -59,6 +71,6 @@ class LatinSquareEncoder(private val reduced: Boolean, val n: Int, val k: Int, v
     }
 }
 
-class LatinSquareEncoderBuilder(private val reduced: Boolean) : LatinCnfEncoderBuilder {
-    override fun invoke(n: Int, k: Int, q: Int) = LatinSquareEncoder(reduced, n, k, q)
+class LatinSquareEncoderBuilder(private val reduced: Boolean, private val weighted: Boolean) : LatinCnfEncoderBuilder {
+    override fun invoke(n: Int, k: Int, q: Int) = LatinSquareEncoder(reduced, weighted, n, k, q)
 }

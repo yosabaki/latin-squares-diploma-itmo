@@ -94,6 +94,12 @@ class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
         "pl",
         description = "filename with list of propagated variables"
     )
+    val weighted by option(
+        ArgType.Boolean,
+        "weighted",
+        "w",
+        description = "add weights to latin disjuncts"
+    )
     val n by option(ArgType.Int, "size", shortName = "n", description = "size of latin square").default(10)
     val q by option(ArgType.Int, "count", shortName = "k", description = "number of latin squares").default(3)
     val r by option(
@@ -107,9 +113,9 @@ class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
         val cnfEncoderBuilder: LatinCnfEncoderBuilder = when (encoding) {
             ARRAY -> OrthogonalArrayEncoderBuilder(false)
             LATIN_LOG -> LogLatinSquareEncoderBuilder(false)
-            LATIN_ONEHOT -> LatinSquareEncoderBuilder(false)
+            LATIN_ONEHOT -> LatinSquareEncoderBuilder(false, weighted)
             REDUCED_ARRAY -> OrthogonalArrayEncoderBuilder(true)
-            REDUCED_LATIN_LOG -> LogLatinSquareEncoderBuilder(true)
+            REDUCED_LATIN_LOG -> LogLatinSquareEncoderBuilder(true, weighted)
             REDUCED_LATIN_ONEHOT -> LatinSquareEncoderBuilder(true)
         }
         val cnf = cnfEncoderBuilder(n, q, r).cnf().let {
