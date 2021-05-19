@@ -4,3 +4,6 @@
 [submodule "cryptominisat"]
 	path = cryptominisat
 	url = https://github.com/msoos/cryptominisat.git
+[submodule "p-mcomsps-str"]
+	path = p-mcomsps-str
+	url = https://github.com/vvallade/p-mcomsps-str.git
