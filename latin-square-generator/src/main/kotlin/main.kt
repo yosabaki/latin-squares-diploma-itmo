@@ -156,7 +156,7 @@ class EncodeCommand : Subcommand("encode", "Encode latin object to solver") {
 @OptIn(ExperimentalCli::class)
 fun main(args: Array<String>) {
 //    val parser = ReducedLatinParser(8, 3, File("../metacdcl/out").bufferedReader(), MINISAT).apply { parse() }
-//    val cnf = LatinSquareEncoderBuilder(false)(8,3, 1).cnf()
+//    val cnf = LatinSquareEncoderBuilder(true, false, BreakingSymmetryType.SECOND, 0)(8,3, 1).cnf()
 //    cnf.propagate(parser.parsedUnits)
     val argParser = ArgParser("latin-square-encoding-generator")
 

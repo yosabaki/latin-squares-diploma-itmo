@@ -105,7 +105,7 @@ fun getCycles(n: Int): List<List<Int>> {
 }
 
 fun breakingSymmetry(variables: List<List<Literal>>, firstIndex: Int = 0, cycle: Int = -1): Expression {
-    val cycles = getCycles(variables.size)
+    val cycles = getCycles(variables.size - firstIndex)
     val breakingSymmetryVars = List(cycles.size) { newVariable }
     val phis = cycles.indices.map { i ->
         val cycle = cycles[i]

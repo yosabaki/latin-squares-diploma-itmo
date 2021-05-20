@@ -37,7 +37,7 @@ class LatinSquareEncoder(
         val breakingSymmetry = if (reduced) {
             when (breakingSymmetryType) {
                 FIRST -> breakingSymmetry(coreVariables[0][1], cycle = cycleNum)
-                SECOND -> breakingSymmetry(coreVariables[1][0].subList(1, coreVariables[1][0].size), 1, cycleNum)
+                SECOND -> breakingSymmetry(coreVariables[1][0], 1, cycleNum)
                 else -> and()
             }
         } else {
