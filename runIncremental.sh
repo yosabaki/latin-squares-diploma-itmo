@@ -9,5 +9,5 @@ decode="decode -e reduced_latin_onehot -o";
 inputs="inputs";
 outputs="outputs";
 
-$ENCODER $encode "$inputs/incrementalInput" -n 10 -k 3 -r 1;
+$ENCODER $encode "$inputs/incrementalInput" -n 10 -k 3 -r 1 -bs first;
 $INCREMENTAL "$inputs/incrementalInput" "$outputs/incremental/incrementalOutput" $1;

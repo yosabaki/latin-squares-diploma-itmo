@@ -60,7 +60,9 @@ fun greaterOrEqual(vars: List<Variable>, k: Int): VariabledExpression {
         and(first, and(second).also { it.args.forEach { it.isImportant = false } }, third)
     }
     val tail = vars.last() or not(svars.last()[k - 1])
-    return VariabledExpression(and(head, and(middle), tail), svars.last().reversed())
+    return VariabledExpression(and(head, and(middle), tail), svars.last().reversed().run {
+        mapIndexed { i, it -> (vars.last() or not(it)) and (if (i == 0) True else not(get(i - 1)!!)) }
+    })
 }
 
 fun decompose(expr: Expression, vars: Set<String>): Pair<List<Expression>, List<Expression>> {

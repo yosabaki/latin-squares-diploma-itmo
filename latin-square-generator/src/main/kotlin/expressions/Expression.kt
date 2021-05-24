@@ -32,7 +32,7 @@ open class CNF(
     val variables: Set<String>,
     val coreVariables: List<Variable> = emptyList(),
     val metaVariables: List<MetaVariable> = emptyList(),
-    val incremental: List<Variable> = emptyList(),
+    val incremental: List<Expression> = emptyList(),
     val net: Net = Net(),
     val weights: List<Int> = listOf()
 ) {
@@ -52,8 +52,11 @@ open class CNF(
             }
         }
         if (incremental.isNotEmpty()) {
-            sb.append("c incrementalVariables:\n")
-            sb.append(incremental.joinToString(" ", "c ", "\n") { "$it" })
+            sb.append("c incrementalExprs:\n")
+            for (inc in incremental) {
+                sb.append("c expr:\n")
+                sb.append(inc.args.joinToString("\nc ", "c ", "\n") { "$it" })
+            }
         }
         if (net.nodes.isNotEmpty()) {
             sb.append("c computationalNet:\n")
@@ -107,7 +110,7 @@ open class CNF(
         and: And,
         core: List<Variable>,
         meta: List<MetaVariable> = emptyList(),
-        incremental: List<Variable>,
+        incremental: List<Expression>,
         net: Net,
         weights: List<Int> = listOf()
     ) : this(and.args.distinct(), and.variables, core, meta, incremental, net, weights)
@@ -158,7 +161,7 @@ class WCNF(
 
 sealed class ILPMarker
 
-data class VariabledExpression(val expr: Expression, val variables: List<Variable> = emptyList())
+data class VariabledExpression(val expr: Expression, val variables: List<Expression> = emptyList())
 
 sealed class Expression(
     private val defArgs: List<Expression>,

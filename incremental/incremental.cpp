@@ -39,33 +39,46 @@ vector<vector<Lit>> parseClauses(const std::string &filename) {
     return clauses;
 }
 
-vector<Lit> parseLiterals(const std::string &filename) {
+vector<vector<vector<Lit>>> parseLiterals(const std::string &filename) {
     int clauseCount;
     std::string temp;
     std::ifstream fin(filename);
     std::string line = "c";
     bool flag = false;
     std::cout << "incremental" << std::endl;
+    vector<vector<vector<Lit>>> clauses;
     while (line[0] == 'c') {
-        std::getline(fin, line);
-        if (flag) {
-            std::istringstream s(line);
-            s >> temp;
-            vector<Lit> literals;
-            int literal;
-            while (s >> literal) {
-                literals.push_back(Lit(abs(literal) - 1, isPositive(literal)));
-                std::cout << literals.back() << std::endl;
-            }
-            fin.close();
-            return literals;
+	if (flag) {
+	    std::cout << "?" << line << std::endl;
+            if (line != "c expr:") {
+	        break;
+	    }
+	    clauses.emplace_back();
+	    std::getline(fin, line);
+	    std::cout << "?" << line << std::endl;
+	    while (isdigit(line[2]) || line[2] == '-') {
+	        std::istringstream s(line);
+                s >> temp;
+                vector<Lit> literals;
+                int literal;
+                while (s >> literal) {
+                    literals.push_back(Lit(abs(literal) - 1, !isPositive(literal)));
+                    std::cout << literals.back() << ' ';
+                }
+	        std::cout << std::endl;
+		std::getline(fin, line);
+		std::cout << "!" << line << std::endl;
+		clauses.back().push_back(literals);
+	    }
+	    continue;
         }
-        if (line.substr(2, line.size()) == "incrementalVariables:") {
+        if (line == "c incrementalExprs:") {
             flag = true;
         }
+	std::getline(fin, line);
     } 
     fin.close();
-    return vector<Lit>();
+    return clauses;
 }
 
 std::string buildString(const std::string &prefix, const std::string &main, int index) {
@@ -96,7 +109,7 @@ int main(int argc, char *argv[]) {
     solver.set_num_threads(threadCount);
     std::cout << "Reading clauses\n";
     vector<vector<Lit>> mainClauses = parseClauses(inputfile);
-    vector<Lit> additionalClauses = parseLiterals(inputfile);
+    vector<vector<vector<Lit>>> additionalClauses = parseLiterals(inputfile);
 
     //We need 3 variables. They will be: 0,1,2
     //Variable numbers are always trivially increasing
@@ -113,10 +126,17 @@ int main(int argc, char *argv[]) {
     auto begin = std::chrono::system_clock::now();
     std::cout << additionalClauses.size() << '\n';
     for (int i = 0; i < additionalClauses.size(); i++) {
-        std::cout << "try decomposed " << additionalClauses[i] << std::endl;
-        solver.add_clause(vector<Lit> { additionalClauses[i] });
+        std::cout << "try decomposed:\n";
+	for (int j = 0; j < additionalClauses[i].size(); j++) {
+        	solver.add_clause(additionalClauses[i][j]);
+		for (auto& lit: additionalClauses[i][j]) {
+			std::cout << lit << ' ';
+		}
+		std::cout << '\n';
+	}
         auto start = std::chrono::system_clock::now();
         ret = solver.solve();
+	std::cout << ret << std::endl;
         auto end = std::chrono::system_clock::now();
         if (ret == l_True) {
             std::chrono::duration<double> elapsed_time = end - start;
